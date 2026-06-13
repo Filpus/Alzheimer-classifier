@@ -1,0 +1,14 @@
+make_dataset:
+  window_size: 3.0
+  dataset_name: brainlat
+  raw_dir: data/raw/brainlat
+  processed_dir: data/processed
+train:
+  batch_size: 64
+  learning_rate: 0.001
+  epochs: 30
+  n_splits: 5
+random_forest:
+  n_estimators: 100
+  max_depth: 10
+  random_stat: 42

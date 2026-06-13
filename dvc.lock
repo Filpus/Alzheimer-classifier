@@ -1,0 +1,84 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: py src/data/make_dataset.py
+    deps:
+    - path: data/raw/brainlat
+      hash: md5
+      md5: b808a056562c1e4315615c0c3ab6c6dd.dir
+      size: 8037634919
+      nfiles: 467
+    - path: src/data/make_dataset.py
+      hash: md5
+      md5: 1b3bfa363dd2eaea33db972262124021
+      size: 4614
+    params:
+      params.yaml:
+        make_dataset.dataset_name: brainlat
+        make_dataset.window_size: 3.0
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 38254faac91a50bcf38a7ae8c215908f.dir
+      size: 7791293741
+      nfiles: 67
+  train_repr:
+    cmd: py src/training/train_representation.py
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 38254faac91a50bcf38a7ae8c215908f.dir
+      size: 7791293741
+      nfiles: 67
+    - path: src/data/dataloaders.py
+      hash: md5
+      md5: 278c02c092a79a02eaea469c9a306da4
+      size: 1705
+    - path: src/models/baseline_ae.py
+      hash: md5
+      md5: c7f44a003364565cc7b0ccac449ed864
+      size: 1364
+    - path: src/training/train_representation.py
+      hash: md5
+      md5: d33cc9281b67e1de32191f68b53f47da
+      size: 2865
+    params:
+      params.yaml:
+        train.batch_size: 64
+        train.epochs: 30
+        train.learning_rate: 0.001
+        train.n_splits: 5
+    outs:
+    - path: models/representations
+      hash: md5
+      md5: fa5e4b9b49a80e76602c43ac9d914097.dir
+      size: 151813
+      nfiles: 1
+  train_classifier:
+    cmd: py src/training/train_rf.py
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 38254faac91a50bcf38a7ae8c215908f.dir
+      size: 7791293741
+      nfiles: 67
+    - path: models/representations
+      hash: md5
+      md5: fa5e4b9b49a80e76602c43ac9d914097.dir
+      size: 151813
+      nfiles: 1
+    - path: src/models/baseline_ae.py
+      hash: md5
+      md5: c7f44a003364565cc7b0ccac449ed864
+      size: 1364
+    - path: src/training/train_rf.py
+      hash: md5
+      md5: 8779ddfd7861ccca5ebff6bb390b6ffb
+      size: 2466
+    params:
+      params.yaml:
+        random_forest.max_depth: 10
+        random_forest.n_estimators: 100
+        random_forest.random_stat: 42
+        train.batch_size: 64
+        train.n_splits: 5

@@ -1,0 +1,38 @@
+stages:
+  preprocess:
+    cmd: py src/data/make_dataset.py
+    deps:
+      - src/data/make_dataset.py
+      - data/raw/brainlat
+    params:
+      - make_dataset.window_size
+      - make_dataset.dataset_name
+    outs:
+      - data/processed
+  train_repr:
+    cmd: py src/training/train_representation.py
+    deps:
+      - data/processed
+      - src/training/train_representation.py
+      - src/models/baseline_ae.py
+      - src/data/dataloaders.py
+    params:
+      - train.batch_size
+      - train.learning_rate
+      - train.epochs
+      - train.n_splits
+    outs:
+      - models/representations
+  train_classifier:
+    cmd: py src/training/train_rf.py
+    deps:
+      - data/processed
+      - models/representations
+      - src/training/train_rf.py
+      - src/models/baseline_ae.py
+    params:
+      - train.batch_size
+      - train.n_splits
+      - random_forest.n_estimators
+      - random_forest.max_depth
+      - random_forest.random_stat
