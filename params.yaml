@@ -12,3 +12,14 @@ random_forest:
   n_estimators: 100
   max_depth: 10
   random_stat: 42
+cpc:
+  epochs: 10
+  learning_rate: 0.001
+  context_dim: 128
+  prediction_steps: 4
+tnc:
+  epochs: 10
+  learning_rate: 0.001
+  neighbor_range: 3
+  num_samples: 5
+  w: 0.05

@@ -23,7 +23,7 @@ def train_rf():
         sequence_length = sample_batch.shape[2]
 
         base_ae = Autoencoder(num_channels, sequence_length).to(device)
-        encoder_path = f"models/representations/encoder_fold_{fold}.pth"
+        encoder_path = f"models/representations/ae/encoder_fold_{fold}.pth"
         base_ae.encoder.load_state_dict(torch.load(encoder_path, map_location=device))
         base_ae.eval()
 
