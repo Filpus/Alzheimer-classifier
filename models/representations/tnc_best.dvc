@@ -1,0 +1,6 @@
+outs:
+- md5: 491e9352041d1354a6b30c5a961ebfc2.dir
+  size: 4546410
+  nfiles: 5
+  hash: md5
+  path: tnc_best

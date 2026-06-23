@@ -1,0 +1,6 @@
+outs:
+- md5: 60e195be1defa5ebe0bbda639cf05543.dir
+  size: 4546410
+  nfiles: 5
+  hash: md5
+  path: tnc
