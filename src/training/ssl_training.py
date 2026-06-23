@@ -5,6 +5,8 @@ raportowego. Skrypty wykonuja pelna CV i zapisuja enkodery; notebook dokłada wo
 tego warstwe cache wynikow i wariantow 'best'.
 """
 
+import copy
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -41,27 +43,56 @@ def train_ssl(model, seq_loader, epochs, device, lr=1e-3, verbose=True, loss_nam
     return hist
 
 
-def linear_probe(encoder, encoded_size, train_loader, val_loader, epochs, device, lr=5e-3):
+def _eval_head_on_loader(clf, val_loader, device):
+    """Inference: zwraca (acc, auc) glowicy `clf` na `val_loader` (per okno)."""
+    clf.eval()
+    probs, targets = [], []
+    with torch.no_grad():
+        for X, y in val_loader:
+            probs.extend(torch.sigmoid(clf(X.to(device))).cpu().numpy())
+            targets.extend(y.numpy())
+    probs = np.array(probs).ravel(); targets = np.array(targets).ravel()
+    return accuracy_score(targets, (probs > 0.5)), roc_auc_score(targets, probs)
+
+
+def eval_head(encoder, encoded_size, head_state, val_loader, device):
+    """Bez treningu: wczytuje zapisana glowice (state_dict modulu .classifier) na zamrozony
+    enkoder i liczy (acc, auc) per okno. Uzywane, gdy glowica jest juz na dysku."""
+    clf = LinearClassifier(encoder, encoded_size).to(device)
+    clf.classifier.load_state_dict(head_state)
+    return _eval_head_on_loader(clf, val_loader, device)
+
+
+def linear_probe(encoder, encoded_size, train_loader, val_loader, epochs, device,
+                 lr=5e-3, patience=None):
     """Klasyfikacja liniowa: zamrozony enkoder + plytka glowica trenowana na cechach.
 
-    Zwraca najlepsze (accuracy, roc_auc) na zbiorze walidacyjnym po `epochs` epokach.
+    Mierzy (acc, auc) per okno po KAZDEJ epoce i sledzi NAJLEPSZA epoke wg AUC. Gdy `patience`
+    jest podane, stosuje early-stopping: przerywa, gdy AUC nie poprawi sie przez `patience` epok.
+
+    Zwraca (best_acc, best_auc, best_head_state), gdzie best_head_state to deepcopy state_dict
+    modulu .classifier z epoki najlepszego AUC (do zapisu w models/evaluation/ i pozniejszego
+    odtworzenia metryk bez treningu).
     """
     clf = LinearClassifier(encoder, encoded_size).to(device)   # encoder zamrazany w LinearClassifier
     crit = nn.BCEWithLogitsLoss()
     opt = optim.Adam(clf.classifier.parameters(), lr=lr)
     best_acc, best_auc = 0.0, 0.0
+    best_head_state = copy.deepcopy(clf.classifier.state_dict())
+    no_improve = 0
     for _ in range(epochs):
         clf.train()
         for X, y in train_loader:
             X = X.to(device); y = y.float().to(device).unsqueeze(1)
             opt.zero_grad(); crit(clf(X), y).backward(); opt.step()
-        clf.eval()
-        probs, targets = [], []
-        with torch.no_grad():
-            for X, y in val_loader:
-                probs.extend(torch.sigmoid(clf(X.to(device))).cpu().numpy())
-                targets.extend(y.numpy())
-        probs = np.array(probs).ravel(); targets = np.array(targets).ravel()
-        best_acc = max(best_acc, accuracy_score(targets, (probs > 0.5)))
-        best_auc = max(best_auc, roc_auc_score(targets, probs))
-    return best_acc, best_auc
+        acc, auc = _eval_head_on_loader(clf, val_loader, device)
+        best_acc = max(best_acc, acc)
+        if auc > best_auc:
+            best_auc = auc
+            best_head_state = copy.deepcopy(clf.classifier.state_dict())  # glowica z epoki max AUC
+            no_improve = 0
+        else:
+            no_improve += 1
+            if patience is not None and no_improve >= patience:
+                break
+    return best_acc, best_auc, best_head_state
