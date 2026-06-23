@@ -22,17 +22,16 @@ stages:
       - train.epochs
       - train.n_splits
     outs:
-      - models/representations
+      - models/representations/ae
   train_classifier:
-    cmd: py src/training/train_rf.py
+    cmd: py src/training/train_classifier.py
     deps:
       - data/processed
-      - models/representations
-      - src/training/train_rf.py
+      - models/representations/ae
+      - src/training/train_classifier.py
       - src/models/baseline_ae.py
+      - src/models/linear_classifier.py
+      - src/data/dataloaders.py
     params:
       - train.batch_size
       - train.n_splits
-      - random_forest.n_estimators
-      - random_forest.max_depth
-      - random_forest.random_stat

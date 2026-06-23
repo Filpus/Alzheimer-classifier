@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import torch
 
+
 class BaseEEGProcessor(ABC):
     def __init__(self, raw_dir, processed_dir, params):
         self.raw_dir = raw_dir
@@ -19,6 +20,7 @@ class BaseEEGProcessor(ABC):
     @abstractmethod
     def process_and_save(self, metadata):
         pass
+
 
 class BrainLatProcessor(BaseEEGProcessor):
     def load_metadata(self):
@@ -71,29 +73,31 @@ class BrainLatProcessor(BaseEEGProcessor):
                 print(f"BŁĄD MNE [{subject_id}]: {e}")
                 continue
                 
+            raw.filter(l_freq=0.5, h_freq=45.0, fir_design='firwin', verbose=False)
+            data = raw.get_data().astype(np.float32)
+            
             sfreq = raw.info['sfreq']
             window_samples = int(self.params['window_size'] * sfreq)
             
-            data = raw.get_data()
-            
-            mean = np.mean(data, axis=1, keepdims=True)
-            std = np.std(data, axis=1, keepdims=True)
-            data_normalized = data 
-            
-            num_windows = data_normalized.shape[1] // window_samples
+            num_windows = data.shape[1] // window_samples
             if num_windows == 0:
                 print(f"BŁĄD DŁUGOŚCI [{subject_id}]: Sygnał zbyt krótki")
                 continue
                 
-            data_trimmed = data_normalized[:, :num_windows * window_samples]
-            epochs = data_trimmed.reshape(data_normalized.shape[0], num_windows, window_samples)
+            data_trimmed = data[:, :num_windows * window_samples]
+            epochs = data_trimmed.reshape(data.shape[0], num_windows, window_samples)
             epochs = np.transpose(epochs, (1, 0, 2))
             
-            tensor_data = torch.tensor(epochs, dtype=torch.float32)
+            epochs_mean = np.mean(epochs, axis=2, keepdims=True)
+            epochs_std = np.std(epochs, axis=2, keepdims=True)
+            epochs_normalized = (epochs - epochs_mean) / (epochs_std + 1e-8)
+            
+            tensor_data = torch.tensor(epochs_normalized, dtype=torch.float32)
             output_file = os.path.join(self.processed_dir, f"{subject_id}_{diagnosis}_label_{label}.pt")
             
             torch.save(tensor_data, output_file)
             print(f"SUKCES [{subject_id}]: Zapisano {num_windows} epok ({diagnosis}).")
+
 
 class DatasetFactory:
     @staticmethod
@@ -101,6 +105,7 @@ class DatasetFactory:
         if dataset_name == 'brainlat':
             return BrainLatProcessor(raw_dir, processed_dir, params)
         raise ValueError(f"Dataset {dataset_name} is not supported.")
+
 
 def main():
     with open("params.yaml", "r") as f:
@@ -117,6 +122,7 @@ def main():
     
     metadata = processor.load_metadata()
     processor.process_and_save(metadata)
+
 
 if __name__ == "__main__":
     main()
