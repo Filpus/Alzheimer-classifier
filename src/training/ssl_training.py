@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, roc_auc_score
-
+from torch.utils.data import DataLoader, TensorDataset
 from src.models.linear_classifier import LinearClassifier
 
 
@@ -46,22 +46,44 @@ def linear_probe(encoder, encoded_size, train_loader, val_loader, epochs, device
 
     Zwraca najlepsze (accuracy, roc_auc) na zbiorze walidacyjnym po `epochs` epokach.
     """
-    clf = LinearClassifier(encoder, encoded_size).to(device)   # encoder zamrazany w LinearClassifier
+    encoder.eval()
+
+    # --- [MINIMALNA MODYFIKACJA]: Ekstrakcja cech przed pętlą treningową ---
+    def get_features(loader):
+        feats, targets = [], []
+        with torch.no_grad():
+            for X, y in loader:
+                out = encoder(X.to(device))
+                feats.append(out.view(out.size(0), -1).cpu())
+                targets.append(y)
+        return DataLoader(TensorDataset(torch.cat(feats), torch.cat(targets)), batch_size=loader.batch_size,
+                          shuffle=(loader == train_loader))
+
+    fast_train_loader = get_features(train_loader)
+    fast_val_loader = get_features(val_loader)
+    # ----------------------------------------------------------------------
+
+    clf = LinearClassifier(None, encoded_size).to(device)  # encoder=None, bo cechy są już wyciągnięte
     crit = nn.BCEWithLogitsLoss()
     opt = optim.Adam(clf.classifier.parameters(), lr=lr)
     best_acc, best_auc = 0.0, 0.0
+
     for _ in range(epochs):
         clf.train()
-        for X, y in train_loader:
-            X = X.to(device); y = y.float().to(device).unsqueeze(1)
-            opt.zero_grad(); crit(clf(X), y).backward(); opt.step()
+        for X, y in fast_train_loader:  # Zmiana na fast_train_loader
+            X = X.to(device)
+            y = y.float().to(device).unsqueeze(1)
+            opt.zero_grad()
+            crit(clf(X), y).backward()
+            opt.step()
         clf.eval()
         probs, targets = [], []
         with torch.no_grad():
-            for X, y in val_loader:
+            for X, y in fast_val_loader:  # Zmiana na fast_val_loader
                 probs.extend(torch.sigmoid(clf(X.to(device))).cpu().numpy())
                 targets.extend(y.numpy())
-        probs = np.array(probs).ravel(); targets = np.array(targets).ravel()
+        probs = np.array(probs).ravel()
+        targets = np.array(targets).ravel()
         best_acc = max(best_acc, accuracy_score(targets, (probs > 0.5)))
         best_auc = max(best_auc, roc_auc_score(targets, probs))
     return best_acc, best_auc
