@@ -1,38 +1,16 @@
 import torch
 import torch.nn as nn
 
+from src.models.encoder import WindowEncoder, ProjectionHead
 
-class TNCEncoder(nn.Module):
-    """Enkoder pojedynczego okna EEG dla TNC.
 
-    Tak jak w CPC, warstwy splotowe odpowiadaja enkoderowi baseline
-    (baseline_ae.Autoencoder), aby reprezentacja miala ten sam rozmiar i byla
-    porownywalna w protokole linear evaluation. Wejscie: (B, C, T).
-    Wyjscie: (B, encoded_size) -- splaszczona reprezentacja okna.
+class TNCEncoder(WindowEncoder):
+    """Enkoder okna EEG dla TNC -- wspolny WindowEncoder (128-d, global pooling).
+
+    Identyczny z CPCEncoder, dzieki czemu porownanie TNC vs CPC ocenia samą metodę
+    SSL, a nie rozne architektury. Wejscie (B, C, T) -> wyjscie (B, 128).
     """
-
-    def __init__(self, num_channels, sequence_length):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv1d(num_channels, 16, kernel_size=15, stride=1, padding=7),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-
-            nn.Conv1d(16, 32, kernel_size=11, stride=1, padding=5),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-        )
-
-        with torch.no_grad():
-            dummy = torch.zeros(1, num_channels, sequence_length)
-            out = self.conv(dummy)
-            self.encoded_size = out.view(1, -1).size(1)
-
-    def forward(self, x):
-        feat = self.conv(x)
-        return feat.view(feat.size(0), -1)
+    pass
 
 
 class Discriminator(nn.Module):
@@ -73,18 +51,26 @@ class TNCModel(nn.Module):
     """
 
     def __init__(self, num_channels, sequence_length, neighbor_range=3,
-                 num_samples=5, w=0.05):
+                 num_samples=5, w=0.05, use_projection=False, projection_dim=64):
         super().__init__()
         self.encoder = TNCEncoder(num_channels, sequence_length)
         self.encoded_size = self.encoder.encoded_size
-        self.discriminator = Discriminator(self.encoded_size)
+
+        # Opcjonalna glowica projekcyjna (SimCLR): dyskryminator dziala na g(z), nie na z.
+        # Do EWALUACJI uzywamy surowego enkodera (encode_windows) -- glowica jest odrzucana.
+        self.use_projection = use_projection
+        self.projection = ProjectionHead(self.encoded_size, self.encoded_size, projection_dim) if use_projection else None
+        disc_dim = projection_dim if use_projection else self.encoded_size
+
+        self.discriminator = Discriminator(disc_dim)
         self.neighbor_range = neighbor_range
         self.num_samples = num_samples
         self.w = w
         self.bce = nn.BCEWithLogitsLoss()
 
     def encode_windows(self, windows):
-        """(num_windows, C, T) -> (num_windows, encoded_size)."""
+        """(num_windows, C, T) -> (num_windows, encoded_size). Zawsze surowy enkoder
+        -- reprezentacja uzywana w klasyfikacji liniowej (glowica projekcyjna pomijana)."""
         return self.encoder(windows)
 
     def _sample_pairs(self, n, device):
@@ -121,7 +107,9 @@ class TNCModel(nn.Module):
         windows: (num_windows, C, T) w kolejnosci czasowej.
         Zwraca: (loss, accuracy) lub (None, 0.0) gdy sekwencja zbyt krotka.
         """
-        z = self.encode_windows(windows)            # (N, D)
+        z = self.encode_windows(windows)            # (N, encoded_size) -- surowa reprezentacja
+        if self.use_projection:
+            z = self.projection(z)                  # (N, projection_dim) -- dyskryminator na projekcji
         n = z.size(0)
         device = z.device
 

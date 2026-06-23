@@ -1,38 +1,16 @@
 import torch
 import torch.nn as nn
 
+from src.models.encoder import WindowEncoder, ProjectionHead
 
-class CPCEncoder(nn.Module):
-    """Enkoder pojedynczego okna EEG (g_enc) dla CPC.
 
-    Architektura swiadomie odpowiada enkoderowi z baseline_ae.Autoencoder
-    (te same warstwy Conv1d/BN/ReLU/MaxPool), aby reprezentacje CPC i AE
-    mialy ten sam rozmiar i byly porownywane w identycznym protokole
-    linear evaluation. Wejscie: (B, num_channels, window_samples).
-    Wyjscie: (B, 32, L') -- mapa cech splotowych dla okna.
+class CPCEncoder(WindowEncoder):
+    """Enkoder okna EEG (g_enc) dla CPC -- wspolny WindowEncoder (128-d, global pooling).
+
+    Identyczny z TNCEncoder, dzieki czemu porownanie CPC vs TNC ocenia samą metodę
+    SSL, a nie rozne architektury. Wejscie (B, C, T) -> wyjscie (B, 128).
     """
-
-    def __init__(self, num_channels, sequence_length):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv1d(num_channels, 16, kernel_size=15, stride=1, padding=7),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-
-            nn.Conv1d(16, 32, kernel_size=11, stride=1, padding=5),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-        )
-
-        with torch.no_grad():
-            dummy = torch.zeros(1, num_channels, sequence_length)
-            out = self.conv(dummy)
-            self.encoded_size = out.view(1, -1).size(1)
-
-    def forward(self, x):
-        return self.conv(x)
+    pass
 
 
 class CPCModel(nn.Module):
@@ -48,16 +26,24 @@ class CPCModel(nn.Module):
     dokladnie jak enkodera baseline.
     """
 
-    def __init__(self, num_channels, sequence_length, context_dim=128, prediction_steps=4):
+    def __init__(self, num_channels, sequence_length, context_dim=128, prediction_steps=4,
+                 use_projection=False, projection_dim=64):
         super().__init__()
         self.encoder = CPCEncoder(num_channels, sequence_length)
         self.encoded_size = self.encoder.encoded_size
         self.prediction_steps = prediction_steps
         self.context_dim = context_dim
 
-        # Autoregresor podsumowujacy historie reprezentacji z_{<=t}
+        # Opcjonalna glowica projekcyjna (SimCLR): strata InfoNCE liczona na g(z), nie na z.
+        # Do EWALUACJI uzywamy surowego enkodera (encode_windows) -- glowica jest odrzucana.
+        self.use_projection = use_projection
+        self.projection = ProjectionHead(self.encoded_size, self.encoded_size, projection_dim) if use_projection else None
+        # wymiar przestrzeni, w ktorej liczona jest strata (z lub g(z))
+        self._space_dim = projection_dim if use_projection else self.encoded_size
+
+        # Autoregresor podsumowujacy historie reprezentacji
         self.gru = nn.GRU(
-            input_size=self.encoded_size,
+            input_size=self._space_dim,
             hidden_size=context_dim,
             num_layers=1,
             batch_first=True,
@@ -65,11 +51,15 @@ class CPCModel(nn.Module):
 
         # Osobna projekcja liniowa W_k dla kazdego horyzontu predykcji
         self.predictors = nn.ModuleList(
-            [nn.Linear(context_dim, self.encoded_size) for _ in range(prediction_steps)]
+            [nn.Linear(context_dim, self._space_dim) for _ in range(prediction_steps)]
         )
 
     def encode_windows(self, windows):
-        """(num_windows, C, T) -> (num_windows, encoded_size). Reprezentacje per okno."""
+        """(num_windows, C, T) -> (num_windows, encoded_size). Reprezentacje per okno.
+
+        Zawsze surowy enkoder (128-d) -- to jest reprezentacja uzywana w klasyfikacji liniowej,
+        niezaleznie od tego, czy w treningu uzyto glowicy projekcyjnej.
+        """
         feat = self.encoder(windows)
         return feat.view(feat.size(0), -1)
 
@@ -79,7 +69,9 @@ class CPCModel(nn.Module):
         windows: (num_windows, num_channels, window_samples) w kolejnosci czasowej.
         Zwraca: (loss, accuracy) usrednione po krokach predykcji.
         """
-        z = self.encode_windows(windows)            # (N, D)
+        z = self.encode_windows(windows)            # (N, encoded_size) -- surowa reprezentacja
+        if self.use_projection:
+            z = self.projection(z)                  # (N, projection_dim) -- strata liczona na projekcji
         n = z.size(0)
         device = z.device
 
