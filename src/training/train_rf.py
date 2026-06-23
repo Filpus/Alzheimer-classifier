@@ -1,21 +1,43 @@
 import os
+import sys
 import yaml
 import torch
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score
-import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from src.data.dataloaders import get_fold_dataloaders
 from src.models.baseline_ae import Autoencoder
 
+
 def train_rf():
     with open("params.yaml", "r") as f:
-        params = yaml.safe_load(f)['train']
+        config = yaml.safe_load(f)
+        params = config.get('train', {})
+        rf_params = config.get('random_forest', {})
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    n_splits = int(params.get('n_splits', 5))
+    batch_size = int(params.get('batch_size', 32))
 
-    for fold, train_loader, val_loader in get_fold_dataloaders("data/processed", n_splits=params['n_splits'], batch_size=params['batch_size']):
+    n_estimators = int(rf_params.get('n_estimators', 100))
+    
+    max_depth = rf_params.get('max_depth', None)
+    if max_depth in ('None', 'null', 'Null', None):
+        max_depth = None
+    else:
+        max_depth = int(max_depth)
+
+    random_state = rf_params.get('random_state')
+    if random_state is None:
+        random_state = rf_params.get('random_stat', 42)
+    if random_state not in ('None', 'null', 'Null', None):
+        random_state = int(random_state)
+    else:
+        random_state = None
+
+    for fold, train_loader, val_loader in get_fold_dataloaders("data/processed", n_splits=n_splits, batch_size=batch_size):
         print(f"\n--- TRENOWANIE KLASYFIKATORA RF: FOLD {fold} ---")
 
         sample_batch, _ = next(iter(train_loader))
@@ -47,7 +69,11 @@ def train_rf():
                 X_val_features.extend(features)
                 y_val_labels.extend(y_batch.numpy())
 
-        clf = RandomForestClassifier(n_estimators=100)
+        clf = RandomForestClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            random_state=random_state
+        )
         clf.fit(X_train_features, y_train_labels)
 
         preds = clf.predict(X_val_features)
@@ -58,6 +84,7 @@ def train_rf():
 
         print(f"Random Forest | Acc: {val_acc:.4f} | AUC: {val_auc:.4f}")
         break
+
 
 if __name__ == "__main__":
     train_rf()

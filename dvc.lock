@@ -10,8 +10,8 @@ stages:
       nfiles: 467
     - path: src/data/make_dataset.py
       hash: md5
-      md5: 1b3bfa363dd2eaea33db972262124021
-      size: 4614
+      md5: 6b05605a9a8098027353123d91ee34a4
+      size: 4630
     params:
       params.yaml:
         make_dataset.dataset_name: brainlat
@@ -19,7 +19,7 @@ stages:
     outs:
     - path: data/processed
       hash: md5
-      md5: 38254faac91a50bcf38a7ae8c215908f.dir
+      md5: 4cb78176af9d6fbe321cabfbe4898f26.dir
       size: 7791293741
       nfiles: 67
   train_repr:
@@ -27,21 +27,21 @@ stages:
     deps:
     - path: data/processed
       hash: md5
-      md5: 38254faac91a50bcf38a7ae8c215908f.dir
+      md5: 4cb78176af9d6fbe321cabfbe4898f26.dir
       size: 7791293741
       nfiles: 67
     - path: src/data/dataloaders.py
       hash: md5
-      md5: 278c02c092a79a02eaea469c9a306da4
-      size: 1705
+      md5: 487a563d685a53b5938a63f1587a3737
+      size: 4664
     - path: src/models/baseline_ae.py
       hash: md5
       md5: c7f44a003364565cc7b0ccac449ed864
       size: 1364
     - path: src/training/train_representation.py
       hash: md5
-      md5: d33cc9281b67e1de32191f68b53f47da
-      size: 2865
+      md5: d619c20a71cb5193de5dba3bae36bb64
+      size: 2874
     params:
       params.yaml:
         train.batch_size: 64
@@ -49,36 +49,41 @@ stages:
         train.learning_rate: 0.001
         train.n_splits: 5
     outs:
-    - path: models/representations
+    - path: models/representations/ae
       hash: md5
-      md5: fa5e4b9b49a80e76602c43ac9d914097.dir
+      md5: 98c750b2c69c30057dec467e3210232e.dir
       size: 151813
       nfiles: 1
   train_classifier:
-    cmd: py src/training/train_rf.py
+    cmd: py src/training/train_classifier.py
     deps:
     - path: data/processed
       hash: md5
-      md5: 38254faac91a50bcf38a7ae8c215908f.dir
+      md5: 4cb78176af9d6fbe321cabfbe4898f26.dir
       size: 7791293741
       nfiles: 67
-    - path: models/representations
+    - path: models/representations/ae
       hash: md5
-      md5: fa5e4b9b49a80e76602c43ac9d914097.dir
+      md5: 98c750b2c69c30057dec467e3210232e.dir
       size: 151813
       nfiles: 1
+    - path: src/data/dataloaders.py
+      hash: md5
+      md5: 487a563d685a53b5938a63f1587a3737
+      size: 4664
     - path: src/models/baseline_ae.py
       hash: md5
       md5: c7f44a003364565cc7b0ccac449ed864
       size: 1364
-    - path: src/training/train_rf.py
+    - path: src/models/linear_classifier.py
       hash: md5
-      md5: 8779ddfd7861ccca5ebff6bb390b6ffb
-      size: 2466
+      md5: 1998fbfbff0b7cc89086d88d42833714
+      size: 1205
+    - path: src/training/train_classifier.py
+      hash: md5
+      md5: 86ae3fc80cb4b907b88caecfb0d44925
+      size: 3266
     params:
       params.yaml:
-        random_forest.max_depth: 10
-        random_forest.n_estimators: 100
-        random_forest.random_stat: 42
         train.batch_size: 64
         train.n_splits: 5
