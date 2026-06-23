@@ -22,6 +22,8 @@ stages:
       - train.epochs
       - train.n_splits
     outs:
+      # Pipeline sledzi TYLKO enkoder AE (sekcja 3, czesc Filipa). Pozostale warianty
+      # (tnc, cpc, tnc_best, cpc_best) powstaja w notebooku i sa sledzone osobno przez `dvc add`.
       - models/representations/ae
   train_classifier:
     cmd: py src/training/train_classifier.py
