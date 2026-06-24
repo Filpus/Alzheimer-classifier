@@ -1,0 +1,13 @@
+# torch z buildem CUDA 12.1: w praktyce zainstalowane jest torch==2.5.1+cu121
+# (pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121).
+# Ponizej wersja bez sufiksu CUDA, by plik dzialal tez na CPU/innym buildzie.
+torch==2.5.1
+numpy==1.26.4
+pandas==2.2.1
+scikit-learn==1.5.2
+matplotlib==3.11.0
+
+mne>=1.6
+
+PyYAML==6.0.3
+dvc==3.67.1
