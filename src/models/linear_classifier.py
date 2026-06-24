@@ -24,7 +24,8 @@ class LinearClassifier(nn.Module):
         # -- robi to dopiero tryb eval). To dawalo rozjazd cech train vs eval i
         # zanizalo AUC. Po tej zmianie enkoder jest zamrozony tez statystycznie.
         super().train(mode)
-        self.encoder.eval()
+        if self.encoder is not None:  # encoder=None: cechy wyciagniete z gory (feature caching)
+            self.encoder.eval()
         return self
 
     def forward(self, x):

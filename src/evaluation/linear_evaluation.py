@@ -66,8 +66,9 @@ def run_cv_pretrained(variant, model_name, data_dir, root, device, n_splits, pro
     accs, aucs = [], []
     for fold, tl_win, vl_win in get_fold_dataloaders(data_dir, n_splits=n_splits, batch_size=64):
         s, _ = next(iter(tl_win)); C, T = s.shape[1], s.shape[2]
-        enc, es = build_encoder(model_name, C, T, device)
-        enc.load_state_dict(torch.load(encoder_path(root, variant, fold), map_location=device)); enc.eval()
+        _state = torch.load(encoder_path(root, variant, fold), map_location=device)
+        enc, es = build_encoder(model_name, C, T, device, ckpt_state=_state)  # d_model z wag (Mamba)
+        enc.load_state_dict(_state); enc.eval()
         if use_heads:
             acc, auc = eval_head(enc, es, load_head(root, variant, fold, 'win', device), vl_win, device)
             if verbose:

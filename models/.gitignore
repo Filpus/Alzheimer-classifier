@@ -5,5 +5,7 @@
 /representations/tnc_best
 /representations/cpc
 /representations/cpc_best
+/representations/mamba
+/representations/mamba_best
 # Glowice liniowe z notebooka - `dvc add models/evaluation`
 /evaluation

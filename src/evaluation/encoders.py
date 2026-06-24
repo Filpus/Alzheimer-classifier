@@ -37,11 +37,22 @@ def encoder_path(model_name, fold):
     return f"{folder}/{prefix}_fold_{fold}.pth"
 
 
-def build_encoder(model_name, num_channels, sequence_length, device):
+def mamba_dmodel_from_ckpt(state_dict):
+    """Odczytuje d_model z zapisanego MambaEncoder (embed.patch.weight ma ksztalt [d_model, C, patch]).
+
+    Rozne warianty Mamby (mamba d_model=64, mamba_best np. 128) trenowano z roznym d_model,
+    a build_encoder domyslnie tworzy d_model=32 -> stad odczytujemy d_model wprost z wag,
+    by zbudowac enkoder o zgodnej architekturze (inaczej load_state_dict rzuca size mismatch).
+    """
+    return int(state_dict["embed.patch.weight"].shape[0])
+
+
+def build_encoder(model_name, num_channels, sequence_length, device, ckpt_state=None):
     """Tworzy enkoder danego modelu (bez zaladowanych wag) i zwraca (encoder, encoded_size).
 
-    Wszystkie enkodery dziela te sama architekture splotowa, wiec encoded_size
-    jest identyczny -- to gwarantuje porownywalnosc reprezentacji.
+    Dla Mamby, gdy podano ckpt_state (state_dict zapisanego enkodera), d_model jest odczytany
+    z wag -- enkoder ewaluacyjny ma wtedy te sama architekture co wytrenowany (rozne warianty
+    Mamby maja rozne d_model). Pozostale modele maja jeden, staly wymiar reprezentacji.
     """
     if model_name == "ae":
         ae = Autoencoder(num_channels, sequence_length).to(device)
@@ -53,7 +64,8 @@ def build_encoder(model_name, num_channels, sequence_length, device):
         enc = TNCEncoder(num_channels, sequence_length).to(device)
         return enc, enc.encoded_size
     if model_name == "mamba":
-        enc = MambaEncoder(num_channels, sequence_length).to(device)
+        d_model = mamba_dmodel_from_ckpt(ckpt_state) if ckpt_state is not None else 64
+        enc = MambaEncoder(num_channels, sequence_length, d_model=d_model).to(device)
         return enc, enc.encoded_size
     raise ValueError(f"Nieznany model '{model_name}'. Dostepne: {SUPPORTED_MODELS}")
 

@@ -64,8 +64,9 @@ def eval_per_patient(variant, model_name, load_probe, data_dir, root, results_di
     win_gen = get_fold_dataloaders(data_dir, n_splits=n_splits, batch_size=64)
     for (fold, _, vl_seq), (_, tl_win, _) in zip(seq_gen, win_gen):
         s, _ = next(iter(tl_win)); C, T = s.shape[1], s.shape[2]
-        enc, es = build_encoder(model_name, C, T, device)
-        enc.load_state_dict(torch.load(encoder_path(root, variant, fold), map_location=device)); enc.eval()
+        _state = torch.load(encoder_path(root, variant, fold), map_location=device)
+        enc, es = build_encoder(model_name, C, T, device, ckpt_state=_state)  # d_model z wag (Mamba)
+        enc.load_state_dict(_state); enc.eval()
         clf = LinearClassifier(enc, es).to(device)   # enkoder zamrozony w LinearClassifier
         if use_heads:
             # (2) wczytaj glowice 'pat' i policz metryki inference (bez treningu)

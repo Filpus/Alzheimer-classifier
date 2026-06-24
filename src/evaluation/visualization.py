@@ -22,8 +22,9 @@ from src.models.linear_classifier import LinearClassifier
 
 
 def _load_encoder(variant, model_name, C, T, fold, root, device):
-    enc, es = build_encoder(model_name, C, T, device)
-    enc.load_state_dict(torch.load(encoder_path(root, variant, fold), map_location=device))
+    _state = torch.load(encoder_path(root, variant, fold), map_location=device)
+    enc, es = build_encoder(model_name, C, T, device, ckpt_state=_state)  # d_model z wag (Mamba)
+    enc.load_state_dict(_state)
     enc.eval()
     return enc, es
 
