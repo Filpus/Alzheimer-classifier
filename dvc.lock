@@ -32,16 +32,16 @@ stages:
       nfiles: 67
     - path: src/data/dataloaders.py
       hash: md5
-      md5: 278c02c092a79a02eaea469c9a306da4
-      size: 1705
+      md5: 02dcc1368139034ddb70ec005a8e7642
+      size: 4540
     - path: src/models/baseline_ae.py
       hash: md5
-      md5: c7f44a003364565cc7b0ccac449ed864
-      size: 1364
+      md5: 506239892386a51845935afa48acdddd
+      size: 1327
     - path: src/training/train_representation.py
       hash: md5
-      md5: d33cc9281b67e1de32191f68b53f47da
-      size: 2865
+      md5: 31425ce35e00164aa5eb15fd1545ff33
+      size: 2803
     params:
       params.yaml:
         train.batch_size: 64
@@ -51,9 +51,9 @@ stages:
     outs:
     - path: models/representations
       hash: md5
-      md5: fa5e4b9b49a80e76602c43ac9d914097.dir
-      size: 151813
-      nfiles: 1
+      md5: cd1f164f8bae314abbe1844b67eb80e0.dir
+      size: 69285358
+      nfiles: 11
   train_classifier:
     cmd: py src/training/train_rf.py
     deps:
