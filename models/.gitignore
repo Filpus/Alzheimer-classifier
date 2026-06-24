@@ -1,1 +1,11 @@
-/representations
+# AE: output pipeline'u DVC (stage train_repr) - sledzony przez dvc.lock
+/representations/ae
+# Warianty SSL z notebooka - sledzone osobno przez `dvc add` (.dvc obok)
+/representations/tnc
+/representations/tnc_best
+/representations/cpc
+/representations/cpc_best
+/representations/mamba
+/representations/mamba_best
+# Glowice liniowe z notebooka - `dvc add models/evaluation`
+/evaluation

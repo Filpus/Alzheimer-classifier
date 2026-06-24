@@ -16,7 +16,7 @@ def train_ae():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Urzadzenie: {device}")
     
-    os.makedirs("models/representations", exist_ok=True)
+    os.makedirs("models/representations/ae", exist_ok=True)
     
     for fold, train_loader, val_loader in get_fold_dataloaders("data/processed", n_splits=params['n_splits'], batch_size=params['batch_size']):
         print(f"--- FOLD {fold} ---")
@@ -64,8 +64,8 @@ def train_ae():
                     
             print(f"Epoka {epoch+1}/{params['epochs']} | Train MSE: {train_loss/len(train_loader):.4f} | Val MSE: {val_loss/len(val_loader):.4f}")
         
-        torch.save(model.encoder.state_dict(), f"models/representations/encoder_fold_{fold}.pth")
-        print(f"Zapisano wagi enkodera do models/representations/encoder_fold_{fold}.pth")
+        torch.save(model.encoder.state_dict(), f"models/representations/ae/encoder_fold_{fold}.pth")
+        print(f"Zapisano wagi enkodera do models/representations/ae/encoder_fold_{fold}.pth")
         break 
 
 if __name__ == "__main__":

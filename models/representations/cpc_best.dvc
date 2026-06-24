@@ -1,0 +1,6 @@
+outs:
+- md5: 74e70d658f354129e2938395ae490423.dir
+  size: 4548785
+  nfiles: 5
+  hash: md5
+  path: cpc_best
