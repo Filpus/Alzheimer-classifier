@@ -137,7 +137,6 @@ class _SelectiveSSM(nn.Module):
 
         A = -torch.exp(self.A_log)
 
-        # klasyczna SSM rekurencja (jak w wersji 2, ale bez scan tricków)
         h = torch.zeros(B, self.d_inner, self.d_state, device=x.device)
 
         ys = []
