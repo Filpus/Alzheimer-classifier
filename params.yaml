@@ -23,3 +23,8 @@ tnc:
   neighbor_range: 3
   num_samples: 5
   w: 0.05
+mamba:
+  epochs: 5
+  learning_rate: 0.001
+  d_model: 64
+  d_state: 16

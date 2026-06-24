@@ -27,7 +27,8 @@ from src.models.linear_classifier import LinearClassifier
 # wariant -> plik wynikow per-OKNO z sekcji 4/5 (te same liczby co linear-eval tam).
 PERWIN_FILE = {'ae': 'ae_default.json',
                'tnc': 'tnc_default.json', 'tnc_best': 'tnc_best.json',
-               'cpc': 'cpc_default.json', 'cpc_best': 'cpc_best.json'}
+               'cpc': 'cpc_default.json', 'cpc_best': 'cpc_best.json',
+               'mamba': 'mamba_default.json', 'mamba_best': 'mamba_best.json'}
 # komplet kluczy cache per-PACJENT (do walidacji starego/niekompletnego cache).
 PP_KEYS = [f'pat_{m}' for m in ('auc', 'acc', 'f1', 'prec', 'rec')]
 

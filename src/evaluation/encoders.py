@@ -12,6 +12,7 @@ import torch.nn as nn
 from src.models.baseline_ae import Autoencoder
 from src.models.cpc import CPCEncoder
 from src.models.tnc import TNCEncoder
+from src.models.mamba_model import MambaEncoder
 
 
 # nazwa modelu -> (podfolder, prefiks pliku) z wagami enkodera.
@@ -21,6 +22,7 @@ ENCODER_LOCATION = {
     "ae": ("models/representations/ae", "encoder"),
     "cpc": ("models/representations/cpc", "encoder"),
     "tnc": ("models/representations/tnc", "encoder"),
+    "mamba": ("models/representations/mamba", "encoder"),
 }
 
 SUPPORTED_MODELS = tuple(ENCODER_LOCATION.keys())
@@ -49,6 +51,9 @@ def build_encoder(model_name, num_channels, sequence_length, device):
         return enc, enc.encoded_size
     if model_name == "tnc":
         enc = TNCEncoder(num_channels, sequence_length).to(device)
+        return enc, enc.encoded_size
+    if model_name == "mamba":
+        enc = MambaEncoder(num_channels, sequence_length).to(device)
         return enc, enc.encoded_size
     raise ValueError(f"Nieznany model '{model_name}'. Dostepne: {SUPPORTED_MODELS}")
 
